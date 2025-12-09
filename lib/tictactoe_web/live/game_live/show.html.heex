@@ -1,0 +1,131 @@
+<Layouts.app flash={@flash}>
+  <%= if @game.status == "playing" and @role == @game.current_player and @role in ["X", "O"] do %>
+    <div class="alert alert-success mb-4 rounded-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span class="font-bold text-lg">It's your turn! You are playing as <%= @role %></span>
+    </div>
+  <% end %>
+  <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold">Game: {@game.slug}</h1>
+        <p class="text-base-content/70">
+          Share this link with friends!
+        </p>
+      </div>
+      <.link navigate={~p"/"} class="btn btn-ghost">
+        ← Back to Home
+      </.link>
+    </div>
+
+    <div class="card bg-base-200 shadow-xl">
+      <div class="card-body">
+        <div class="flex items-center justify-center mb-6">
+          <div class="text-center">
+            <p class="text-sm text-base-content/70 mb-2">Your Role</p>
+            <div class={[
+              "badge badge-lg",
+              @role == "X" && "badge-primary",
+              @role == "O" && "badge-secondary",
+              @role == "spectator" && "badge-ghost"
+            ]}>
+              {if @role, do: String.upcase(@role), else: "Connecting..."}
+            </div>
+            <%= if @role == "spectator" and (@game.player_x_session == nil or @game.player_o_session == nil) do %>
+              <div class="mt-4 space-y-2">
+                <p class="text-sm text-base-content/70">A player slot is available!</p>
+                <div class="flex gap-2 justify-center">
+                  <%= if @game.player_x_session == nil do %>
+                    <button
+                      phx-click="claim_slot"
+                      phx-value-slot="X"
+                      class="btn btn-primary btn-sm"
+                    >
+                      Join as X
+                    </button>
+                  <% end %>
+                  <%= if @game.player_o_session == nil do %>
+                    <button
+                      phx-click="claim_slot"
+                      phx-value-slot="O"
+                      class="btn btn-secondary btn-sm"
+                    >
+                      Join as O
+                    </button>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center mb-6">
+          <div class="text-center">
+            <p class="text-sm text-base-content/70 mb-2">Status</p>
+            <div class={[
+              "badge badge-lg",
+              @game.status == "waiting" && "badge-warning",
+              @game.status == "playing" && "badge-info",
+              @game.status == "finished" && "badge-success"
+            ]}>
+              {String.capitalize(@game.status)}
+            </div>
+            {if @game.status == "playing" and @game.current_player do
+              ~H"""
+              <p class="text-sm mt-2">
+                Current player: <span class="font-bold">{@game.current_player}</span>
+              </p>
+              """
+            end}
+          </div>
+        </div>
+
+        {if @game.winner do
+          ~H"""
+          <div class="alert alert-success mb-6">
+            <span class="font-bold text-lg">
+              {if @game.winner == "draw" do
+                "It's a draw!"
+              else
+                "Player #{@game.winner} wins!"
+              end}
+            </span>
+          </div>
+          """
+        end}
+
+        <div class="flex justify-center">
+          <div
+            id="game-board"
+            class="grid grid-cols-3 gap-2 w-fit"
+            phx-hook="GameBoard"
+            data-slug={@slug}
+            data-role={@role}
+            data-current-player={@game.current_player}
+            data-status={@game.status}
+          >
+            <%= for {cell, index} <- Enum.with_index(@game.board || []) do %>
+              <button
+                data-position={index}
+                disabled={!can_move?(@role, @game.current_player, @game.status, cell)}
+                class={[
+                  "w-20 h-20 sm:w-24 sm:h-24 text-4xl font-bold rounded-lg border-2 transition-all",
+                  "hover:scale-105 active:scale-95",
+                  (cell == nil or cell == "") && "bg-base-100 border-base-300 hover:border-primary",
+                  cell == "X" && "bg-primary/20 border-primary text-primary",
+                  cell == "O" && "bg-secondary/20 border-secondary text-secondary",
+                  (!can_move?(@role, @game.current_player, @game.status, cell)) && "opacity-50 cursor-not-allowed"
+                ]}
+              >
+                <%= if cell && cell != "", do: cell, else: "" %>
+              </button>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layouts.app>
+
